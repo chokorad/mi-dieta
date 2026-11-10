@@ -71,6 +71,12 @@ textarea{min-height:120px;resize:vertical}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .empty{text-align:center;color:var(--muted);padding:28px 10px}
 #sync{font-size:12px;opacity:.85;margin-left:8px}
+.grab{touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none;padding:8px 10px 8px 2px;font-size:20px;line-height:1;color:var(--muted);flex:none}
+.dz{transition:background .12s,outline-color .12s}
+.dz.over{outline:2px dashed var(--green);outline-offset:-2px;background:var(--green-l)}
+.ghost{position:fixed;z-index:50;pointer-events:none;background:var(--card);color:var(--ink);border:1px solid var(--green);border-radius:10px;padding:8px 12px;box-shadow:0 8px 24px rgba(0,0,0,.35);font-size:15px;max-width:80vw;opacity:.96;transform:translate(-14px,-50%)}
+.drag-src{opacity:.35}
+.newz{border:2px dashed var(--line);border-radius:14px;padding:16px;text-align:center;color:var(--muted);margin-bottom:10px}
 .toast{position:fixed;left:50%;bottom:calc(88px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#111;color:#fff;padding:9px 16px;border-radius:99px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .25s;z-index:20}
 .toast.show{opacity:.95}
 h3{margin:16px 2px 8px;font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
@@ -271,32 +277,77 @@ function vToppers(){
     + (sec('🔥 Calientes',hot)+sec('❄️ Fríos',cold) || '<div class="empty">No llevas toppers hoy. Toca "Editar toppers".</div>');
 }
 function vTopperEdit(list,free,custom){
-  const mv=(key,cur,withNone)=>`<select onchange="moveItem(${q(key)},this.value)" style="width:auto;max-width:48%;padding:6px">
-      <option value="">${withNone?'Mover a…':'Agregar a…'}</option>
-      ${list.filter(t=>t.id!==cur).map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('')}
-      <option value="new">＋ Topper nuevo</option>${withNone?'<option value="none">✕ Quitar del topper</option>':''}</select>`;
+  const row=(r,from)=>`<div class="item" data-key="${esc(r.key)}"><span class="grab" data-drag="${esc(r.key)}" data-from="${from}" title="Arrastra">⠿</span><span class="grow">${esc(r.s.emoji)} ${esc(r.t)}</span></div>`;
   let h=`<div class="tools"><button class="btn sm" onclick="tpEdit=false;render()">✔ Listo</button><button class="btn alt sm" onclick="addTopper()">＋ Agregar topper</button><button class="btn alt sm" onclick="resetTp()">↺ Restablecer</button></div>
-    <div class="hint">Cada topper es un recipiente. Ábrelo para ver qué lleva, partirlo (mover un ingrediente a otro topper) o juntarlo con otro. Solo cambia el día de hoy.</div>`;
-  h+=list.map((t,i)=>{
+    <div class="hint">Mantén presionado ⠿ y arrastra un ingrediente a otro topper. Toca el nombre del topper para renombrarlo, cambiar 🔥/❄️, moverlo o juntarlo. Solo cambia hoy.</div>`;
+  h+=list.map(t=>{
     const open=openSet.has('te'+t.id);
-    return `<div class="card ${open?'open':''}">
+    return `<div class="card dz" data-drop="${t.id}">
       <div class="row head" onclick="tgl('te${t.id}')"><span style="font-size:26px">${t.temp==='hot'?'🔥':'❄️'}</span>
-        <div class="grow"><div class="ttl">${esc(t.name)}</div><div class="sub">${t.rows.length} item${t.rows.length===1?'':'s'}</div></div><span class="chev">▶</span></div>
-      <div class="body">
+        <div class="grow"><div class="ttl">${esc(t.name)}</div><div class="sub">${t.rows.length} item${t.rows.length===1?'':'s'}</div></div><span class="sub">${open?'▲':'⚙'}</span></div>
+      ${open?`<div style="padding:0 14px 8px;border-top:1px solid var(--line)">
         <div class="grid2"><div class="field"><label>Nombre</label><input type="text" value="${esc(t.name)}" onchange="renTopper('${t.id}',this.value)"></div>
           <div class="field"><label>Temperatura</label><button class="chip" style="width:100%;padding:10px" onclick="tempTopper('${t.id}')">${t.temp==='hot'?'🔥 Caliente':'❄️ Frío'}</button></div></div>
-        ${t.rows.map(r=>`<div class="item"><span class="grow">${esc(r.s.emoji)} ${esc(r.t)}</span>${mv(r.key,t.id,true)}</div>`).join('')||'<div class="sub">Vacío. Agrégale ingredientes desde "Sin topper".</div>'}
-        <div class="tools" style="margin-top:10px"><button class="btn alt sm" onclick="moveTopper('${t.id}',-1)">↑</button><button class="btn alt sm" onclick="moveTopper('${t.id}',1)">↓</button>
+        <div class="tools"><button class="btn alt sm" onclick="moveTopper('${t.id}',-1)">↑ Subir</button><button class="btn alt sm" onclick="moveTopper('${t.id}',1)">↓ Bajar</button>
           ${list.length>1?`<select onchange="mergeTopper('${t.id}',this.value)" style="width:auto;padding:6px"><option value="">Juntar con…</option>${list.filter(x=>x.id!==t.id).map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select>`:''}
-          <button class="btn red sm" onclick="delTopper('${t.id}')">Quitar topper</button></div>
-      </div></div>`;
+          <button class="btn red sm" onclick="delTopper('${t.id}')">Quitar topper</button></div></div>`:''}
+      <div style="padding:2px 14px 10px">${t.rows.map(r=>row(r,t.id)).join('')||'<div class="sub" style="padding:10px 0">Vacío — arrastra ingredientes aquí.</div>'}</div>
+    </div>`;
   }).join('');
+  h+=`<div class="newz dz" data-drop="new">＋ Suelta aquí para un topper nuevo</div>`;
   const bySlot={}; free.forEach(r=>{ (bySlot[r.s.id]=bySlot[r.s.id]||{s:r.s,rows:[]}).rows.push(r); });
-  const groups=Object.values(bySlot);
-  h+=`<h3>Sin topper (disponibles)</h3>`+(groups.length? groups.map(g=>`<div class="card"><div class="row" style="flex-direction:column;align-items:stretch"><div class="ttl">${esc(g.s.emoji)} ${esc(g.s.name)}</div>
-      ${g.rows.map(r=>`<div class="item"><span class="grow">${esc(r.t)}</span>${mv(r.key,'',false)}</div>`).join('')}</div></div>`).join('') : '<div class="empty">Todo está asignado a un topper.</div>');
+  h+=`<h3>Sin topper (suelta aquí para quitar)</h3><div class="card dz" data-drop="none"><div style="padding:6px 14px 10px">`
+    + (Object.values(bySlot).map(g=>`<div class="sub" style="margin-top:8px">${esc(g.s.emoji)} ${esc(g.s.name)}</div>${g.rows.map(r=>row(r,'')).join('')}`).join('') || '<div class="sub" style="padding:10px 0">Todo está asignado a un topper.</div>')
+    + `</div></div>`;
   return h;
 }
+
+/* ---- arrastrar y soltar (táctil y mouse, con Pointer Events) ---- */
+const DRAG={on:false};
+function dragStart(e){
+  const hd=e.target.closest&&e.target.closest('.grab'); if(!hd||!tpEdit) return;
+  e.preventDefault();
+  DRAG.on=true; DRAG.key=hd.dataset.drag; DRAG.from=hd.dataset.from||''; DRAG.id=e.pointerId; DRAG.over=null;
+  DRAG.src=hd.closest('.item'); if(DRAG.src) DRAG.src.classList.add('drag-src');
+  const g=document.createElement('div'); g.className='ghost'; g.textContent=(DRAG.src?DRAG.src.querySelector('.grow').textContent:'');
+  document.body.appendChild(g); DRAG.ghost=g;
+  try{ hd.setPointerCapture(e.pointerId); }catch(_){}
+  dragMove(e); dragScrollLoop();
+}
+function dropTarget(x,y){ const el=document.elementFromPoint(x,y); return el&&el.closest?el.closest('[data-drop]'):null; }
+function dragMove(e){
+  if(!DRAG.on||e.pointerId!==DRAG.id) return;
+  DRAG.x=e.clientX; DRAG.y=e.clientY;
+  DRAG.ghost.style.left=e.clientX+'px'; DRAG.ghost.style.top=e.clientY+'px';
+  const t=dropTarget(e.clientX,e.clientY);
+  if(DRAG.over&&DRAG.over!==t) DRAG.over.classList.remove('over');
+  if(t) t.classList.add('over'); DRAG.over=t;
+}
+function dragScrollLoop(){
+  if(!DRAG.on) return;
+  const H=window.innerHeight; let dy=0;
+  if(DRAG.y<110) dy=-Math.ceil((110-DRAG.y)/8); else if(DRAG.y>H-150) dy=Math.ceil((DRAG.y-(H-150))/8);
+  if(dy){ window.scrollBy(0,dy); const t=dropTarget(DRAG.x,DRAG.y); if(DRAG.over&&DRAG.over!==t) DRAG.over.classList.remove('over'); if(t) t.classList.add('over'); DRAG.over=t; }
+  requestAnimationFrame(dragScrollLoop);
+}
+function dragEnd(e,cancel){
+  if(!DRAG.on||e.pointerId!==DRAG.id) return;
+  DRAG.on=false;
+  const to=!cancel && DRAG.over ? DRAG.over.dataset.drop : null;
+  if(DRAG.over) DRAG.over.classList.remove('over');
+  if(DRAG.ghost) DRAG.ghost.remove(); if(DRAG.src) DRAG.src.classList.remove('drag-src');
+  if(to!==null) dropItem(DRAG.key,DRAG.from,to);
+}
+function dropItem(key,from,to){
+  if(to===from) return;                 // soltó en el mismo lugar
+  if(to==='none' && from==='') return;  // ya estaba sin topper
+  moveItem(key,to);
+}
+document.addEventListener('pointerdown',dragStart);
+window.addEventListener('pointermove',dragMove);
+window.addEventListener('pointerup',e=>dragEnd(e,false));
+window.addEventListener('pointercancel',e=>dragEnd(e,true));
+document.addEventListener('contextmenu',e=>{ if(e.target.closest&&e.target.closest('.grab')) e.preventDefault(); });
 function vMandado(){
   const pend=S.shop.filter(x=>!x.done), done=S.shop.filter(x=>x.done);
   const row=x=>`<div class="card"><div class="item" style="padding:10px 14px">
