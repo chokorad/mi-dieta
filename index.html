@@ -98,21 +98,22 @@ h3{margin:16px 2px 8px;font-size:14px;color:var(--muted);text-transform:uppercas
 const DEFAULT_PLAN = () => ({
   v: 1,
   planT: 0,
+  tempMig: 1,
   slots: [
     {id:'s1', emoji:'🍳', name:'Desayuno', time:'07:30', carry:true, def:'o1', options:[
-      {id:'o1', name:'Tostada con claras', items:['Pan integral tostado (2 pzas)','Claras de huevo (4 pzas)','Aguacate (1/3 pza)','Zanahoria picada congelada (1/2 taza)','Aceite en spray']}
+      {id:'o1', name:'Tostada con claras', temp:'hot', items:['Pan integral tostado (2 pzas)','Claras de huevo (4 pzas)','Aguacate (1/3 pza)','Zanahoria picada congelada (1/2 taza)','Aceite en spray']}
     ]},
     {id:'s2', emoji:'🫐', name:'Colación 1', time:'11:00', carry:true, def:'o1', options:[
-      {id:'o1', name:'Yogurt con frutos rojos', items:['Yogurt griego natural sin azúcar (100 g)','Arándano azul','Frambuesa','Zarzamora','Almendra','Canela']}
+      {id:'o1', name:'Yogurt con frutos rojos', temp:'cold', items:['Yogurt griego natural sin azúcar (100 g)','Arándano azul','Frambuesa','Zarzamora','Almendra','Canela']}
     ]},
     {id:'s3', emoji:'🍗', name:'Comida', time:'15:00', carry:true, def:'o1', options:[
-      {id:'o1', name:'Pollo con arroz', items:['Pechuga de pollo (150 g)','Arroz cocido (3/4 taza — al momento en micro)','Calabacita','Pimiento de color','Tomate cherry','Aceite de oliva + sal y pimienta']}
+      {id:'o1', name:'Pollo con arroz', temp:'hot', items:['Pechuga de pollo (150 g)','Arroz cocido (3/4 taza — al momento en micro)','Calabacita','Pimiento de color','Tomate cherry','Aceite de oliva + sal y pimienta']}
     ]},
     {id:'s4', emoji:'🌮', name:'Cena', time:'20:00', carry:false, def:'o1', options:[
       {id:'o1', name:'Bistec con tortillas', items:['Bistec / res sin grasa (120 g)','Tortilla de maíz (2 pzas)','Sopa de verduras','Aguacate','Cebolla + sal']}
     ]},
     {id:'s5', emoji:'🍎', name:'Colación 2', time:'22:00', carry:false, def:'o1', options:[
-      {id:'o1', name:'Tortitas con crema de cacahuate', items:['Tortitas de arroz (2 pzas)','Manzana','Crema de cacahuate natural','Semilla de chía']}
+      {id:'o1', name:'Tortitas con crema de cacahuate', temp:'cold', items:['Tortitas de arroz (2 pzas)','Manzana','Crema de cacahuate natural','Semilla de chía']}
     ]}
   ],
   days: {},
@@ -125,10 +126,18 @@ let tab = localStorage.getItem('midieta.tab') || 'hoy';
 const openSet = new Set();           // tarjetas abiertas (sesión)
 let editSlot = null, editOpt = null; // selección en el editor
 
+function migrate(o){
+  if(!o.tempMig){
+    const T={s1:'hot',s2:'cold',s3:'hot',s4:'hot',s5:'cold'};
+    o.slots.forEach(sl=>sl.options.forEach(op=>{ if(!op.temp) op.temp = T[sl.id]||'cold'; }));
+    o.tempMig=1; o.planT=Date.now();
+  }
+  return o;
+}
 function load(){
   try{
     const raw = localStorage.getItem(KEY);
-    if(raw){ const o = JSON.parse(raw); if(o && o.slots) return o; }
+    if(raw){ const o = JSON.parse(raw); if(o && o.slots) return migrate(o); }
   }catch(e){}
   return DEFAULT_PLAN();
 }
@@ -159,12 +168,18 @@ function toast(msg){
 }
 function hs(t){ let h=5381; for(let i=0;i<t.length;i++) h=((h<<5)+h+t.charCodeAt(i))>>>0; return h.toString(36); }
 function pk(slot,opt,text){ return slot.id+'_'+opt.id+'_'+hs(text); }
+const tempOf = o => (o && o.temp==='hot') ? 'hot' : 'cold';
+function isCarry(s){ const v=day().choice['carry_'+s.id]; return v===undefined ? !!s.carry : v==='1'; }
+function packStats(s,o){ const d=day(); const total=o.items.length; return {total, ok:o.items.filter(t=>d.packed[pk(s,o,t)]).length}; }
 function inShop(text){ return S.shop.some(x=>x.text.toLowerCase()===text.toLowerCase() && !x.done); }
 
 /* ====== Acciones ====== */
 function toggleEaten(sid){ const d=day(); d.eaten[sid]=!d.eaten[sid]; save(); render(); fsDay({eaten:{[sid]:d.eaten[sid]}}); }
 function pickOpt(sid,oid){ day().choice[sid]=oid; save(); render(); fsDay({choice:{[sid]:oid}}); }
 function togglePack(key){ const d=day(); d.packed[key]=!d.packed[key]; save(); render(); fsDay({packed:{[key]:d.packed[key]}}); }
+function toggleCarry(sid){ const s=S.slots.find(x=>x.id===sid); const d=day(); const v=isCarry(s)?'0':'1'; d.choice['carry_'+sid]=v; save(); render(); fsDay({choice:{['carry_'+sid]:v}}); }
+function cycleTemp(sid){ const s=S.slots.find(x=>x.id===sid); const o=curOpt(s); if(!o) return; o.temp = tempOf(o)==='hot'?'cold':'hot'; savePlan(); render(); }
+function newTopper(){ addSlot(); go('editar'); }
 function toShop(text){
   const ex = S.shop.find(x=>x.text.toLowerCase()===text.toLowerCase());
   if(ex){ if(ex.done){ ex.done=false; toast('Regresó a la lista 🛒'); fsShop({items:{[ex.id]:{done:false}}}); } else { toast('Ya está en el mandado'); } }
@@ -197,13 +212,13 @@ function vHoy(){
       <div class="row head" onclick="tgl('h${s.id}')">
         <span style="font-size:26px">${esc(s.emoji)}</span>
         <div class="grow"><div class="ttl">${esc(s.name)} <span class="sub">· ${esc(s.time)}</span></div>
-          <div class="sub">${esc(o.name)}</div></div>
+          <div class="sub">${tempOf(o)==='hot'?'🔥':'❄️'} ${esc(o.name)} · ${packStats(s,o).ok}/${packStats(s,o).total}${isCarry(s)?'':' · 🏠'}</div></div>
         <input type="checkbox" ${d.eaten[s.id]?'checked':''} onclick="event.stopPropagation();toggleEaten('${s.id}')" aria-label="Ya comí">
         <span class="chev">▶</span>
       </div>
       <div class="body">
         ${s.options.length>1?`<div class="chips">${s.options.map(x=>`<button class="chip ${x.id===o.id?'on':''}" onclick="pickOpt('${s.id}','${x.id}')">${esc(x.name)}</button>`).join('')}</div>`:''}
-        ${o.items.map(t=>`<div class="item"><span class="grow">${esc(t)}</span><button class="cart ${inShop(t)?'in':''}" onclick="toShop(${q(t)})" aria-label="Al mandado">🛒</button></div>`).join('')||'<div class="sub">Sin ingredientes. Agrégalos en Editar.</div>'}
+        ${o.items.map(t=>{const k=pk(s,o,t),c=!!d.packed[k];return `<div class="item ${c?'ck':''}"><label><input type="checkbox" ${c?'checked':''} onchange="togglePack(${q(k)})"><span class="t">${esc(t)}</span></label><button class="cart ${inShop(t)?'in':''}" onclick="toShop(${q(t)})" aria-label="Al mandado">🛒</button></div>`;}).join('')||'<div class="sub">Sin ingredientes. Agrégalos en Editar.</div>'}
       </div></div>`;
   });
   h+=`<div class="tools"><button class="btn alt sm" onclick="uncheckDay()">↺ Reiniciar el día</button></div>`;
@@ -211,26 +226,38 @@ function vHoy(){
 }
 function vToppers(){
   const d=day();
-  const mk=(list,title)=> list.length? `<h3>${title}</h3>`+list.map(s=>{
+  const card=s=>{
     const o=curOpt(s); if(!o) return '';
-    const total=o.items.length, ok=o.items.filter(t=>d.packed[pk(s,o,t)]).length;
-    const open=openSet.has('t'+s.id) || (ok<total && !openSet.has('x'+s.id) && false);
+    const {total,ok}=packStats(s,o);
+    const open=openSet.has('t'+s.id);
     return `<div class="card ${total&&ok===total?'done':''} ${open?'open':''}">
       <div class="row head" onclick="tgl('t${s.id}')">
         <span style="font-size:26px">${esc(s.emoji)}</span>
         <div class="grow"><div class="ttl">${esc(s.name)} <span class="sub">· ${esc(s.time)}</span></div>
           <div class="sub">${esc(o.name)} · ${ok}/${total}</div></div>
-        <span class="badge ${s.carry?'':'home'}">${s.carry?'Topper':'Casa'}</span>
         <span class="chev">▶</span>
       </div>
       <div class="body">
         ${o.items.map(t=>{const k=pk(s,o,t),c=!!d.packed[k];return `<div class="item ${c?'ck':''}">
           <label><input type="checkbox" ${c?'checked':''} onchange="togglePack(${q(k)})"><span class="t">${esc(t)}</span></label>
-          <button class="cart ${inShop(t)?'in':''}" onclick="toShop(${q(t)})" aria-label="Me falta, al mandado">🛒</button></div>`;}).join('')}
+          <button class="cart ${inShop(t)?'in':''}" onclick="toShop(${q(t)})" aria-label="Me falta, al mandado">🛒</button></div>`;}).join('') || '<div class="sub">Sin ingredientes. Agrégalos en Editar.</div>'}
       </div></div>`;
-  }).join('') : '';
-  const a=S.slots.filter(s=>s.carry), b=S.slots.filter(s=>!s.carry);
-  return `<div class="hint">Toca un topper, ve tachando lo que ya echaste. Si algo se acabó: 🛒.</div>` + mk(a,'Para llevar') + mk(b,'En casa') || '<div class="empty">Nada por aquí.</div>';
+  };
+  const car=S.slots.filter(isCarry), home=S.slots.filter(s=>!isCarry(s));
+  const hot=car.filter(s=>tempOf(curOpt(s))==='hot'), cold=car.filter(s=>tempOf(curOpt(s))!=='hot');
+  const orgOpen=openSet.has('org');
+  const org=`<div class="card ${orgOpen?'open':''}">
+    <div class="row head" onclick="tgl('org')"><span style="font-size:22px">⚙️</span>
+      <div class="grow"><div class="ttl">Organizar hoy</div><div class="sub">Hoy llevo ${car.length} topper${car.length===1?'':'s'} · ${hot.length} 🔥 · ${cold.length} ❄️</div></div><span class="chev">▶</span></div>
+    <div class="body">
+      <div class="hint">Marca cuáles llevas hoy y si van calientes o fríos. Se agrupan solos.</div>
+      ${S.slots.map(s=>{const o=curOpt(s);return `<div class="item"><label><input type="checkbox" ${isCarry(s)?'checked':''} onchange="toggleCarry('${s.id}')"><span class="t">${esc(s.emoji)} ${esc(s.name)} <span class="sub">· ${esc(s.time)}</span></span></label>
+        <button class="chip" onclick="cycleTemp('${s.id}')" aria-label="Cambiar temperatura">${tempOf(o)==='hot'?'🔥 Caliente':'❄️ Frío'}</button></div>`;}).join('')}
+      <div class="tools"><button class="btn alt sm" onclick="newTopper()">＋ Nuevo topper</button></div>
+    </div></div>`;
+  const sec=(t,l)=> l.length? `<h3>${t}</h3>`+l.map(card).join('') : '';
+  const body = sec('🔥 Calientes',hot)+sec('❄️ Fríos',cold)+sec('🏠 En casa',home);
+  return org + `<div class="hint">Toca un topper y ve tachando lo que ya echaste. Si algo se acabó: 🛒.</div>` + (body || '<div class="empty">Nada por aquí.</div>');
 }
 function vMandado(){
   const pend=S.shop.filter(x=>!x.done), done=S.shop.filter(x=>x.done);
@@ -246,7 +273,7 @@ function vEditar(){
   const s=S.slots.find(x=>x.id===editSlot);
   if(s && !s.options.find(o=>o.id===editOpt)) editOpt=(s.options.find(o=>o.id===s.def)||s.options[0]||{}).id;
   const o=s&&s.options.find(x=>x.id===editOpt);
-  let h=`<div class="hint">Cada comida puede tener varias opciones (ej. 10 desayunos). En Hoy eliges cuál toca ese día.</div>
+  let h=`<div class="hint">Cada comida puede tener varias opciones (ej. 10 desayunos) con su temperatura. En Hoy eliges cuál toca; en Toppers organizas cuáles llevas.</div>
   <div class="chips">${S.slots.map(x=>`<button class="chip ${x.id===editSlot?'on':''}" onclick="selSlot('${x.id}')">${esc(x.emoji)} ${esc(x.name)}</button>`).join('')}<button class="chip" onclick="addSlot()">＋ Comida</button></div>`;
   if(s){
     h+=`<div class="card"><div class="row" style="flex-direction:column;align-items:stretch">
@@ -260,7 +287,8 @@ function vEditar(){
     <div class="chips">${s.options.map(x=>`<button class="chip ${x.id===editOpt?'on':''}" onclick="selOpt('${x.id}')">${x.id===s.def?'⭐ ':''}${esc(x.name)}</button>`).join('')}<button class="chip" onclick="addOpt()">＋ Opción</button></div>`;
     if(o){
       h+=`<div class="card"><div class="row" style="flex-direction:column;align-items:stretch">
-        <div class="field"><label>Nombre de la opción</label><input type="text" value="${esc(o.name)}" onchange="upOpt('name',this.value)"></div>
+        <div class="grid2"><div class="field"><label>Nombre de la opción</label><input type="text" value="${esc(o.name)}" onchange="upOpt('name',this.value)"></div>
+        <div class="field"><label>Temperatura</label><select onchange="upOpt('temp',this.value)"><option value="hot" ${tempOf(o)==='hot'?'selected':''}>🔥 Caliente</option><option value="cold" ${tempOf(o)!=='hot'?'selected':''}>❄️ Frío</option></select></div></div>
         <div class="field"><label>Ingredientes (uno por línea)</label><textarea onchange="upItems(this.value)">${esc(o.items.join('\n'))}</textarea></div>
         <div class="tools"><button class="btn sm" onclick="setDef()">⭐ Opción por defecto</button><button class="btn alt sm" onclick="dupOpt()">Duplicar</button><button class="btn red sm" onclick="delOpt()">Borrar</button></div>
       </div></div>`;
@@ -276,15 +304,15 @@ const cur=()=>S.slots.find(x=>x.id===editSlot);
 const curO=()=>{const s=cur();return s&&s.options.find(x=>x.id===editOpt);};
 function selSlot(id){editSlot=id;editOpt=null;render();}
 function selOpt(id){editOpt=id;render();}
-function addSlot(){const id='s'+uid();S.slots.push({id,emoji:'🍽️',name:'Nueva comida',time:'12:00',carry:true,def:'o1',options:[{id:'o1',name:'Opción 1',items:[]}]});editSlot=id;editOpt='o1';savePlan();render();}
+function addSlot(){const id='s'+uid();S.slots.push({id,emoji:'🍽️',name:'Nueva comida',time:'12:00',carry:true,def:'o1',options:[{id:'o1',name:'Opción 1',items:[],temp:'cold'}]});editSlot=id;editOpt='o1';savePlan();render();}
 function upSlot(k,v){const s=cur();if(!s)return;s[k]=v;S.slots.sort((a,b)=>a.time.localeCompare(b.time));savePlan();render();}
 function moveSlot(d){const i=S.slots.findIndex(x=>x.id===editSlot),j=i+d;if(j<0||j>=S.slots.length)return;[S.slots[i],S.slots[j]]=[S.slots[j],S.slots[i]];savePlan();render();}
 function delSlot(){const s=cur();if(!s||!confirm('¿Borrar "'+s.name+'" con todas sus opciones?'))return;S.slots=S.slots.filter(x=>x.id!==s.id);editSlot=null;savePlan();render();}
-function addOpt(){const s=cur();if(!s)return;const id='o'+uid();s.options.push({id,name:'Opción '+(s.options.length+1),items:[]});editOpt=id;savePlan();render();}
+function addOpt(){const s=cur();if(!s)return;const id='o'+uid();s.options.push({id,name:'Opción '+(s.options.length+1),items:[],temp:'cold'});editOpt=id;savePlan();render();}
 function upOpt(k,v){const o=curO();if(!o)return;o[k]=v||o[k];savePlan();render();}
 function upItems(v){const o=curO();if(!o)return;o.items=v.split('\n').map(x=>x.trim()).filter(Boolean);savePlan();render();}
 function setDef(){const s=cur(),o=curO();if(!s||!o)return;s.def=o.id;savePlan();render();toast('Opción por defecto');}
-function dupOpt(){const s=cur(),o=curO();if(!s||!o)return;const id='o'+uid();s.options.push({id,name:o.name+' (copia)',items:[...o.items]});editOpt=id;savePlan();render();}
+function dupOpt(){const s=cur(),o=curO();if(!s||!o)return;const id='o'+uid();s.options.push({id,name:o.name+' (copia)',items:[...o.items],temp:o.temp||'cold'});editOpt=id;savePlan();render();}
 function delOpt(){const s=cur(),o=curO();if(!s||!o)return;if(s.options.length<2){toast('Debe quedar al menos una opción');return;}if(!confirm('¿Borrar "'+o.name+'"?'))return;s.options=s.options.filter(x=>x.id!==o.id);if(s.def===o.id)s.def=s.options[0].id;editOpt=null;savePlan();render();}
 function exportData(){const t=JSON.stringify({slots:S.slots,shop:S.shop});(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast('Respaldo copiado'),()=>{prompt('Copia el respaldo:',t);});}
 function importData(){const t=prompt('Pega aquí el respaldo:');if(!t)return;try{const o=JSON.parse(t);if(!o.slots||!o.slots.length)throw 0;S.slots=o.slots;S.shop=o.shop||[];editSlot=null;savePlan();render();toast('Respaldo restaurado');}catch(e){toast('Respaldo inválido');}}

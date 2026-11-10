@@ -1,4 +1,4 @@
-const CACHE = 'midieta-v3';
+const CACHE = 'midieta-v4';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png', './favicon-32.png', './config.js'];
 
 self.addEventListener('install', e => {
