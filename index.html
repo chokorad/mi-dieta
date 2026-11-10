@@ -342,7 +342,7 @@ const fsShop=guard(function(data){ return FB.root.doc('shop').set(data,{merge:tr
 const fsPlan=guard(function(){ return FB.root.doc('plan').set({json:JSON.stringify(S.slots),t:S.planT||Date.now()}); });
 
 function subPlan(){
-  FB.root.doc('plan').onSnapshot(snap=>{
+  FB.root.doc('plan').onSnapshot({includeMetadataChanges:true},snap=>{
     FB.pending=snap.metadata.hasPendingWrites; setSync();
     if(snap.exists){
       const d=snap.data();
@@ -353,7 +353,7 @@ function subPlan(){
   },e=>{FB.lastErr=String(e.message||e); FB.ok=false; setSync();});
 }
 function subShop(){
-  FB.root.doc('shop').onSnapshot(snap=>{
+  FB.root.doc('shop').onSnapshot({includeMetadataChanges:true},snap=>{
     FB.pending=snap.metadata.hasPendingWrites; setSync();
     if(snap.exists){
       const items=(snap.data()||{}).items||{};
@@ -367,7 +367,7 @@ function subShop(){
 function subDay(){
   const k=todayKey(); if(FB.dayKey===k) return;
   if(FB.unDay) FB.unDay(); FB.dayKey=k;
-  FB.unDay=FB.root.doc('day_'+k).onSnapshot(snap=>{
+  FB.unDay=FB.root.doc('day_'+k).onSnapshot({includeMetadataChanges:true},snap=>{
     FB.pending=snap.metadata.hasPendingWrites; setSync();
     const d=day();
     if(snap.exists){
