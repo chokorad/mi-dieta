@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0c1445">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Mi Dieta">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<script src="config.js"></script>
+<title>Mi Dieta</title>
+<style>
+:root{
+  --bg:#f4f7f4; --card:#fff; --ink:#14231a; --muted:#5f7466; --line:#dbe5dd;
+  --green:#0e7490; --green-d:#0c1445; --green-l:#cffafe; --amber:#b45309; --amber-l:#fef3c7; --red:#b91c1c;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#0e1511; --card:#17211b; --ink:#e8f1ea; --muted:#9bb0a1; --line:#273529; --green:#22d3ee; --green-d:#050a2e; --green-l:#0e2f3d; --amber:#fbbf24; --amber-l:#33280b; --red:#f87171;}
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+body{padding-bottom:calc(76px + env(safe-area-inset-bottom))}
+header{position:sticky;top:0;z-index:5;background:var(--green-d);color:#fff;padding:calc(10px + env(safe-area-inset-top)) 16px 12px}
+header h1{margin:0;font-size:18px;display:flex;justify-content:space-between;align-items:baseline}
+header small{font-weight:400;opacity:.8;font-size:13px}
+.bar{height:6px;background:rgba(255,255,255,.25);border-radius:9px;margin-top:8px;overflow:hidden}
+.bar i{display:block;height:100%;background:#67e8f9;width:0;transition:width .3s}
+main{max-width:640px;margin:0 auto;padding:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;margin-bottom:10px;overflow:hidden}
+.row{display:flex;align-items:center;gap:10px;padding:12px 14px}
+.grow{flex:1;min-width:0}
+.ttl{font-weight:650}
+.sub{color:var(--muted);font-size:13px}
+.card.done .ttl{text-decoration:line-through;opacity:.6}
+.head{cursor:pointer;user-select:none}
+.chev{transition:transform .2s;color:var(--muted)}
+.open .chev{transform:rotate(90deg)}
+.body{display:none;border-top:1px solid var(--line);padding:6px 14px 12px}
+.open .body{display:block}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 4px}
+.chip{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:99px;padding:6px 12px;font-size:14px}
+.chip.on{background:var(--green);border-color:var(--green);color:#fff;font-weight:600}
+@media (prefers-color-scheme:dark){.chip.on{color:#04202b}}
+.item{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px dashed var(--line)}
+.item:last-child{border-bottom:0}
+.item label{flex:1;display:flex;gap:10px;align-items:center;cursor:pointer}
+.item.ck span.t{text-decoration:line-through;color:var(--muted)}
+input[type=checkbox]{width:24px;height:24px;accent-color:var(--green);flex:none}
+.cart{border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:6px 9px;font-size:16px}
+.cart.in{background:var(--amber-l);border-color:var(--amber)}
+.btn{border:0;background:var(--green);color:#fff;border-radius:10px;padding:10px 14px;font-size:15px;font-weight:600}
+@media (prefers-color-scheme:dark){.btn{color:#04202b}}
+.btn.alt{background:var(--bg);color:var(--ink);border:1px solid var(--line)}
+.btn.red{background:var(--red);color:#fff}
+.btn.sm{padding:6px 10px;font-size:13px}
+.badge{font-size:11px;border-radius:99px;padding:2px 8px;background:var(--green-l);color:var(--green);font-weight:600}
+.badge.home{background:var(--amber-l);color:var(--amber)}
+nav{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom);z-index:6}
+nav button{flex:1;border:0;background:none;color:var(--muted);padding:9px 0 8px;font-size:11px;display:flex;flex-direction:column;align-items:center;gap:2px}
+nav button b{font-size:21px;font-weight:400}
+nav button.on{color:var(--green);font-weight:700}
+.add{display:flex;gap:8px;margin-bottom:10px}
+input[type=text],input[type=time],textarea,select{width:100%;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;padding:10px;font:inherit}
+textarea{min-height:120px;resize:vertical}
+.field{margin:8px 0}
+.field label{font-size:12px;color:var(--muted);display:block;margin-bottom:3px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.empty{text-align:center;color:var(--muted);padding:28px 10px}
+#sync{font-size:12px;opacity:.85;margin-left:8px}
+.toast{position:fixed;left:50%;bottom:calc(88px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#111;color:#fff;padding:9px 16px;border-radius:99px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .25s;z-index:20}
+.toast.show{opacity:.95}
+h3{margin:16px 2px 8px;font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.tools{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 12px}
+.hint{font-size:13px;color:var(--muted);margin:2px 2px 10px}
+</style>
+</head>
+<body>
+<header>
+  <h1><span id="hTitle">Mi Dieta</span><small><span id="hDate"></span><span id="sync" title="Estado de sincronización"></span></small></h1>
+  <div class="bar"><i id="bar"></i></div>
+</header>
+<main id="app"></main>
+<nav id="nav">
+  <button data-t="hoy"><b>🍽️</b>Hoy</button>
+  <button data-t="toppers"><b>🧳</b>Toppers</button>
+  <button data-t="mandado"><b>🛒</b>Mandado</button>
+  <button data-t="editar"><b>✏️</b>Editar</button>
+</nav>
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+/* ====== Plan base (de tu "Dia Base" de Notion). Todo se edita desde la pestaña Editar. ====== */
+const DEFAULT_PLAN = () => ({
+  v: 1,
+  planT: 0,
+  slots: [
+    {id:'s1', emoji:'🍳', name:'Desayuno', time:'07:30', carry:true, def:'o1', options:[
+      {id:'o1', name:'Tostada con claras', items:['Pan integral tostado (2 pzas)','Claras de huevo (4 pzas)','Aguacate (1/3 pza)','Zanahoria picada congelada (1/2 taza)','Aceite en spray']}
+    ]},
+    {id:'s2', emoji:'🫐', name:'Colación 1', time:'11:00', carry:true, def:'o1', options:[
+      {id:'o1', name:'Yogurt con frutos rojos', items:['Yogurt griego natural sin azúcar (100 g)','Arándano azul','Frambuesa','Zarzamora','Almendra','Canela']}
+    ]},
+    {id:'s3', emoji:'🍗', name:'Comida', time:'15:00', carry:true, def:'o1', options:[
+      {id:'o1', name:'Pollo con arroz', items:['Pechuga de pollo (150 g)','Arroz cocido (3/4 taza — al momento en micro)','Calabacita','Pimiento de color','Tomate cherry','Aceite de oliva + sal y pimienta']}
+    ]},
+    {id:'s4', emoji:'🌮', name:'Cena', time:'20:00', carry:false, def:'o1', options:[
+      {id:'o1', name:'Bistec con tortillas', items:['Bistec / res sin grasa (120 g)','Tortilla de maíz (2 pzas)','Sopa de verduras','Aguacate','Cebolla + sal']}
+    ]},
+    {id:'s5', emoji:'🍎', name:'Colación 2', time:'22:00', carry:false, def:'o1', options:[
+      {id:'o1', name:'Tortitas con crema de cacahuate', items:['Tortitas de arroz (2 pzas)','Manzana','Crema de cacahuate natural','Semilla de chía']}
+    ]}
+  ],
+  days: {},
+  shop: []
+});
+
+const KEY = 'midieta.v1';
+let S = load();
+let tab = localStorage.getItem('midieta.tab') || 'hoy';
+const openSet = new Set();           // tarjetas abiertas (sesión)
+let editSlot = null, editOpt = null; // selección en el editor
+
+function load(){
+  try{
+    const raw = localStorage.getItem(KEY);
+    if(raw){ const o = JSON.parse(raw); if(o && o.slots) return o; }
+  }catch(e){}
+  return DEFAULT_PLAN();
+}
+function save(){
+  try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){ toast('No se pudo guardar'); }
+}
+const uid = () => Math.random().toString(36).slice(2,8);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function todayKey(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function day(){
+  const k = todayKey();
+  if(!S.days[k]){
+    S.days[k] = {choice:{}, eaten:{}, packed:{}};
+    // limpiar días viejos (>14)
+    const keys = Object.keys(S.days).sort();
+    while(keys.length>14){ delete S.days[keys.shift()]; }
+    save();
+  }
+  return S.days[k];
+}
+function curOpt(slot){
+  const id = day().choice[slot.id] || slot.def;
+  return slot.options.find(o=>o.id===id) || slot.options[0];
+}
+function toast(msg){
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),1600);
+}
+function hs(t){ let h=5381; for(let i=0;i<t.length;i++) h=((h<<5)+h+t.charCodeAt(i))>>>0; return h.toString(36); }
+function pk(slot,opt,text){ return slot.id+'_'+opt.id+'_'+hs(text); }
+function inShop(text){ return S.shop.some(x=>x.text.toLowerCase()===text.toLowerCase() && !x.done); }
+
+/* ====== Acciones ====== */
+function toggleEaten(sid){ const d=day(); d.eaten[sid]=!d.eaten[sid]; save(); render(); fsDay({eaten:{[sid]:d.eaten[sid]}}); }
+function pickOpt(sid,oid){ day().choice[sid]=oid; save(); render(); fsDay({choice:{[sid]:oid}}); }
+function togglePack(key){ const d=day(); d.packed[key]=!d.packed[key]; save(); render(); fsDay({packed:{[key]:d.packed[key]}}); }
+function toShop(text){
+  const ex = S.shop.find(x=>x.text.toLowerCase()===text.toLowerCase());
+  if(ex){ if(ex.done){ ex.done=false; toast('Regresó a la lista 🛒'); fsShop({items:{[ex.id]:{done:false}}}); } else { toast('Ya está en el mandado'); } }
+  else { const it={id:uid(), text, done:false, t:Date.now()}; S.shop.push(it); toast('Agregado al mandado 🛒'); fsShop({items:{[it.id]:{text:it.text,done:false,t:it.t}}}); }
+  save(); render();
+}
+function addShopManual(){
+  const i=document.getElementById('newShop'); const v=i.value.trim(); if(!v) return;
+  if(!S.shop.some(x=>x.text.toLowerCase()===v.toLowerCase())){ const it={id:uid(),text:v,done:false,t:Date.now()}; S.shop.push(it); fsShop({items:{[it.id]:{text:it.text,done:false,t:it.t}}}); }
+  i.value=''; save(); render(); setTimeout(()=>document.getElementById('newShop')&&document.getElementById('newShop').focus(),0);
+}
+function toggleShop(id){ const x=S.shop.find(y=>y.id===id); if(x){x.done=!x.done; save(); render(); fsShop({items:{[id]:{done:x.done}}});} }
+function delShop(id){ S.shop=S.shop.filter(y=>y.id!==id); save(); render(); fsShop({items:{[id]:fv().delete()}}); }
+function clearDone(){ const gone=S.shop.filter(y=>y.done).map(y=>y.id); S.shop=S.shop.filter(y=>!y.done); save(); render(); if(gone.length){ const items={}; gone.forEach(i=>items[i]=fv().delete()); fsShop({items}); } }
+function uncheckDay(){ const d=day(); d.eaten={}; d.packed={}; save(); render(); toast('Día reiniciado'); fsDayReplace(); }
+
+/* ====== Vistas ====== */
+function progress(){
+  const d=day(); const n=S.slots.length; const e=S.slots.filter(s=>d.eaten[s.id]).length;
+  document.getElementById('bar').style.width = (n? e/n*100:0)+'%';
+  return {n,e};
+}
+function vHoy(){
+  const d=day();
+  let h='';
+  S.slots.forEach(s=>{
+    const o=curOpt(s); if(!o) return;
+    const open=openSet.has('h'+s.id);
+    h+=`<div class="card ${d.eaten[s.id]?'done':''} ${open?'open':''}">
+      <div class="row head" onclick="tgl('h${s.id}')">
+        <span style="font-size:26px">${esc(s.emoji)}</span>
+        <div class="grow"><div class="ttl">${esc(s.name)} <span class="sub">· ${esc(s.time)}</span></div>
+          <div class="sub">${esc(o.name)}</div></div>
+        <input type="checkbox" ${d.eaten[s.id]?'checked':''} onclick="event.stopPropagation();toggleEaten('${s.id}')" aria-label="Ya comí">
+        <span class="chev">▶</span>
+      </div>
+      <div class="body">
+        ${s.options.length>1?`<div class="chips">${s.options.map(x=>`<button class="chip ${x.id===o.id?'on':''}" onclick="pickOpt('${s.id}','${x.id}')">${esc(x.name)}</button>`).join('')}</div>`:''}
+        ${o.items.map(t=>`<div class="item"><span class="grow">${esc(t)}</span><button class="cart ${inShop(t)?'in':''}" onclick="toShop(${q(t)})" aria-label="Al mandado">🛒</button></div>`).join('')||'<div class="sub">Sin ingredientes. Agrégalos en Editar.</div>'}
+      </div></div>`;
+  });
+  h+=`<div class="tools"><button class="btn alt sm" onclick="uncheckDay()">↺ Reiniciar el día</button></div>`;
+  return h || '<div class="empty">No hay comidas. Agrega en Editar.</div>';
+}
+function vToppers(){
+  const d=day();
+  const mk=(list,title)=> list.length? `<h3>${title}</h3>`+list.map(s=>{
+    const o=curOpt(s); if(!o) return '';
+    const total=o.items.length, ok=o.items.filter(t=>d.packed[pk(s,o,t)]).length;
+    const open=openSet.has('t'+s.id) || (ok<total && !openSet.has('x'+s.id) && false);
+    return `<div class="card ${total&&ok===total?'done':''} ${open?'open':''}">
+      <div class="row head" onclick="tgl('t${s.id}')">
+        <span style="font-size:26px">${esc(s.emoji)}</span>
+        <div class="grow"><div class="ttl">${esc(s.name)} <span class="sub">· ${esc(s.time)}</span></div>
+          <div class="sub">${esc(o.name)} · ${ok}/${total}</div></div>
+        <span class="badge ${s.carry?'':'home'}">${s.carry?'Topper':'Casa'}</span>
+        <span class="chev">▶</span>
+      </div>
+      <div class="body">
+        ${o.items.map(t=>{const k=pk(s,o,t),c=!!d.packed[k];return `<div class="item ${c?'ck':''}">
+          <label><input type="checkbox" ${c?'checked':''} onchange="togglePack(${q(k)})"><span class="t">${esc(t)}</span></label>
+          <button class="cart ${inShop(t)?'in':''}" onclick="toShop(${q(t)})" aria-label="Me falta, al mandado">🛒</button></div>`;}).join('')}
+      </div></div>`;
+  }).join('') : '';
+  const a=S.slots.filter(s=>s.carry), b=S.slots.filter(s=>!s.carry);
+  return `<div class="hint">Toca un topper, ve tachando lo que ya echaste. Si algo se acabó: 🛒.</div>` + mk(a,'Para llevar') + mk(b,'En casa') || '<div class="empty">Nada por aquí.</div>';
+}
+function vMandado(){
+  const pend=S.shop.filter(x=>!x.done), done=S.shop.filter(x=>x.done);
+  const row=x=>`<div class="card"><div class="item" style="padding:10px 14px">
+    <label><input type="checkbox" ${x.done?'checked':''} onchange="toggleShop('${x.id}')"><span class="t" style="${x.done?'text-decoration:line-through;color:var(--muted)':''}">${esc(x.text)}</span></label>
+    <button class="cart" onclick="delShop('${x.id}')" aria-label="Borrar">✕</button></div></div>`;
+  return `<div class="add"><input type="text" id="newShop" placeholder="Agregar al mandado…" onkeydown="if(event.key==='Enter')addShopManual()"><button class="btn" onclick="addShopManual()">+</button></div>
+    ${pend.length?pend.map(row).join(''):'<div class="empty">Lista vacía 🎉<br>Usa el 🛒 en Hoy o Toppers.</div>'}
+    ${done.length?`<h3>En el carrito (${done.length})</h3>${done.map(row).join('')}<div class="tools"><button class="btn alt sm" onclick="clearDone()">Quitar los tachados</button></div>`:''}`;
+}
+function vEditar(){
+  if(!S.slots.find(s=>s.id===editSlot)) editSlot=S.slots[0]&&S.slots[0].id;
+  const s=S.slots.find(x=>x.id===editSlot);
+  if(s && !s.options.find(o=>o.id===editOpt)) editOpt=(s.options.find(o=>o.id===s.def)||s.options[0]||{}).id;
+  const o=s&&s.options.find(x=>x.id===editOpt);
+  let h=`<div class="hint">Cada comida puede tener varias opciones (ej. 10 desayunos). En Hoy eliges cuál toca ese día.</div>
+  <div class="chips">${S.slots.map(x=>`<button class="chip ${x.id===editSlot?'on':''}" onclick="selSlot('${x.id}')">${esc(x.emoji)} ${esc(x.name)}</button>`).join('')}<button class="chip" onclick="addSlot()">＋ Comida</button></div>`;
+  if(s){
+    h+=`<div class="card"><div class="row" style="flex-direction:column;align-items:stretch">
+      <div class="grid2"><div class="field"><label>Nombre</label><input type="text" value="${esc(s.name)}" onchange="upSlot('name',this.value)"></div>
+      <div class="field"><label>Hora</label><input type="time" value="${esc(s.time)}" onchange="upSlot('time',this.value)"></div></div>
+      <div class="grid2"><div class="field"><label>Emoji</label><input type="text" value="${esc(s.emoji)}" onchange="upSlot('emoji',this.value)"></div>
+      <div class="field"><label>¿Dónde se come?</label><select onchange="upSlot('carry',this.value==='1')"><option value="1" ${s.carry?'selected':''}>Topper (se lleva)</option><option value="0" ${!s.carry?'selected':''}>En casa</option></select></div></div>
+      <div class="tools"><button class="btn alt sm" onclick="moveSlot(-1)">↑ Subir</button><button class="btn alt sm" onclick="moveSlot(1)">↓ Bajar</button><button class="btn red sm" onclick="delSlot()">Borrar comida</button></div>
+    </div></div>
+    <h3>Opciones de ${esc(s.name)}</h3>
+    <div class="chips">${s.options.map(x=>`<button class="chip ${x.id===editOpt?'on':''}" onclick="selOpt('${x.id}')">${x.id===s.def?'⭐ ':''}${esc(x.name)}</button>`).join('')}<button class="chip" onclick="addOpt()">＋ Opción</button></div>`;
+    if(o){
+      h+=`<div class="card"><div class="row" style="flex-direction:column;align-items:stretch">
+        <div class="field"><label>Nombre de la opción</label><input type="text" value="${esc(o.name)}" onchange="upOpt('name',this.value)"></div>
+        <div class="field"><label>Ingredientes (uno por línea)</label><textarea onchange="upItems(this.value)">${esc(o.items.join('\n'))}</textarea></div>
+        <div class="tools"><button class="btn sm" onclick="setDef()">⭐ Opción por defecto</button><button class="btn alt sm" onclick="dupOpt()">Duplicar</button><button class="btn red sm" onclick="delOpt()">Borrar</button></div>
+      </div></div>`;
+    }
+  }
+  h+=`<h3>Respaldo</h3><div class="tools"><button class="btn alt sm" onclick="exportData()">Copiar respaldo</button><button class="btn alt sm" onclick="importData()">Pegar respaldo</button><button class="btn red sm" onclick="resetAll()">Restaurar plan base</button></div>
+  <div class="hint">☁️ Se sincroniza solo entre tus dispositivos (plan, toppers y mandado). También queda guardado en este navegador y funciona sin internet. Si algo falla, copia un respaldo.</div>`;
+  return h;
+}
+
+/* ====== Editor ====== */
+const cur=()=>S.slots.find(x=>x.id===editSlot);
+const curO=()=>{const s=cur();return s&&s.options.find(x=>x.id===editOpt);};
+function selSlot(id){editSlot=id;editOpt=null;render();}
+function selOpt(id){editOpt=id;render();}
+function addSlot(){const id='s'+uid();S.slots.push({id,emoji:'🍽️',name:'Nueva comida',time:'12:00',carry:true,def:'o1',options:[{id:'o1',name:'Opción 1',items:[]}]});editSlot=id;editOpt='o1';savePlan();render();}
+function upSlot(k,v){const s=cur();if(!s)return;s[k]=v;S.slots.sort((a,b)=>a.time.localeCompare(b.time));savePlan();render();}
+function moveSlot(d){const i=S.slots.findIndex(x=>x.id===editSlot),j=i+d;if(j<0||j>=S.slots.length)return;[S.slots[i],S.slots[j]]=[S.slots[j],S.slots[i]];savePlan();render();}
+function delSlot(){const s=cur();if(!s||!confirm('¿Borrar "'+s.name+'" con todas sus opciones?'))return;S.slots=S.slots.filter(x=>x.id!==s.id);editSlot=null;savePlan();render();}
+function addOpt(){const s=cur();if(!s)return;const id='o'+uid();s.options.push({id,name:'Opción '+(s.options.length+1),items:[]});editOpt=id;savePlan();render();}
+function upOpt(k,v){const o=curO();if(!o)return;o[k]=v||o[k];savePlan();render();}
+function upItems(v){const o=curO();if(!o)return;o.items=v.split('\n').map(x=>x.trim()).filter(Boolean);savePlan();render();}
+function setDef(){const s=cur(),o=curO();if(!s||!o)return;s.def=o.id;savePlan();render();toast('Opción por defecto');}
+function dupOpt(){const s=cur(),o=curO();if(!s||!o)return;const id='o'+uid();s.options.push({id,name:o.name+' (copia)',items:[...o.items]});editOpt=id;savePlan();render();}
+function delOpt(){const s=cur(),o=curO();if(!s||!o)return;if(s.options.length<2){toast('Debe quedar al menos una opción');return;}if(!confirm('¿Borrar "'+o.name+'"?'))return;s.options=s.options.filter(x=>x.id!==o.id);if(s.def===o.id)s.def=s.options[0].id;editOpt=null;savePlan();render();}
+function exportData(){const t=JSON.stringify({slots:S.slots,shop:S.shop});(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast('Respaldo copiado'),()=>{prompt('Copia el respaldo:',t);});}
+function importData(){const t=prompt('Pega aquí el respaldo:');if(!t)return;try{const o=JSON.parse(t);if(!o.slots||!o.slots.length)throw 0;S.slots=o.slots;S.shop=o.shop||[];editSlot=null;savePlan();render();toast('Respaldo restaurado');}catch(e){toast('Respaldo inválido');}}
+function resetAll(){if(!confirm('¿Volver al plan base? Se pierden tus cambios y el mandado.'))return;S=DEFAULT_PLAN();editSlot=null;savePlan();render();}
+
+function savePlan(){ S.planT=Date.now(); save(); fsPlan(); }
+
+/* ====== Infra ====== */
+function q(s){return esc(JSON.stringify(s));}   // literal JS seguro dentro de atributo HTML
+function tgl(k){openSet.has(k)?openSet.delete(k):openSet.add(k);render();}
+function go(t){tab=t;localStorage.setItem('midieta.tab',t);window.scrollTo(0,0);render();}
+document.getElementById('nav').addEventListener('click',e=>{const b=e.target.closest('button');if(b)go(b.dataset.t);});
+
+function softRender(){ const a=document.activeElement; if(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.type!=='checkbox') return; render(); }
+function render(){
+  const {n,e}=progress();
+  const titles={hoy:'Hoy',toppers:'Toppers',mandado:'Mandado',editar:'Editar plan'};
+  document.getElementById('hTitle').textContent=titles[tab];
+  const d=new Date();
+  document.getElementById('hDate').textContent = tab==='hoy' ? `${e}/${n} comidas · ` + d.toLocaleDateString('es-MX',{weekday:'short',day:'numeric',month:'short'}) : d.toLocaleDateString('es-MX',{weekday:'short',day:'numeric',month:'short'});
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));
+  const y=window.scrollY;
+  const v={hoy:vHoy,toppers:vToppers,mandado:vMandado,editar:vEditar}[tab]||vHoy;
+  document.getElementById('app').innerHTML=v();
+  window.scrollTo(0,y);
+}
+
+/* ====== Sincronización con Firebase (Firestore). Si falla, la app sigue funcionando local. ====== */
+const FB={db:null, root:null, ok:false, unDay:null, dayKey:null, lastErr:null};
+const fv=()=>firebase.firestore.FieldValue;
+function setSync(){
+  const el=document.getElementById('sync'); if(!el) return;
+  let t='⚠️ solo local';
+  if(FB.ok) t = !navigator.onLine ? '📴 sin conexión' : (FB.pending ? '⏳ sincronizando' : '☁️ sincronizado');
+  el.textContent=t;
+}
+function loadScript(src){ return new Promise((res,rej)=>{ const x=document.createElement('script'); x.src=src; x.onload=res; x.onerror=()=>rej(new Error('no cargó '+src)); document.head.appendChild(x); }); }
+async function initSync(){
+  const C=window.APP_CONFIG; if(!C||!C.firebase||!C.fam){ setSync(); return; }
+  try{
+    await loadScript('https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js');
+    await loadScript('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js');
+    firebase.initializeApp(C.firebase);
+    FB.db=firebase.firestore();
+    try{ await FB.db.enablePersistence({synchronizeTabs:true}); }catch(e){}
+    FB.root=FB.db.collection(C.fam);
+    FB.ok=true;
+    subPlan(); subShop(); subDay(); setSync();
+  }catch(e){ FB.lastErr=String(e&&e.message||e); FB.ok=false; setSync(); }
+}
+function guard(fn){ return function(){ if(!FB.ok) return Promise.resolve(); try{ return Promise.resolve(fn.apply(null,arguments)).catch(e=>{FB.lastErr=String(e&&e.message||e); toast('No se pudo sincronizar');}); }catch(e){ return Promise.resolve(); } }; }
+const fsDay=guard(function(data){ return FB.root.doc('day_'+todayKey()).set(data,{merge:true}); });
+const fsDayReplace=guard(function(){ const d=day(); return FB.root.doc('day_'+todayKey()).set({choice:d.choice||{},eaten:{},packed:{}}); });
+const fsShop=guard(function(data){ return FB.root.doc('shop').set(data,{merge:true}); });
+const fsPlan=guard(function(){ return FB.root.doc('plan').set({json:JSON.stringify(S.slots),t:S.planT||Date.now()}); });
+
+function subPlan(){
+  FB.root.doc('plan').onSnapshot(snap=>{
+    FB.pending=snap.metadata.hasPendingWrites; setSync();
+    if(snap.exists){
+      const d=snap.data();
+      if(d && d.json && (d.t||0) > (S.planT||0)){
+        try{ S.slots=JSON.parse(d.json); S.planT=d.t; save(); softRender(); }catch(e){}
+      }
+    } else if(!snap.metadata.fromCache){ fsPlan(); }
+  },e=>{FB.lastErr=String(e.message||e); FB.ok=false; setSync();});
+}
+function subShop(){
+  FB.root.doc('shop').onSnapshot(snap=>{
+    FB.pending=snap.metadata.hasPendingWrites; setSync();
+    if(snap.exists){
+      const items=(snap.data()||{}).items||{};
+      S.shop=Object.keys(items).map(id=>({id,text:items[id].text||'',done:!!items[id].done,t:items[id].t||0})).filter(x=>x.text).sort((a,b)=>a.t-b.t);
+      save(); softRender();
+    } else if(!snap.metadata.fromCache && S.shop.length){
+      const items={}; S.shop.forEach(x=>items[x.id]={text:x.text,done:!!x.done,t:x.t||Date.now()}); fsShop({items});
+    }
+  },e=>{FB.lastErr=String(e.message||e);});
+}
+function subDay(){
+  const k=todayKey(); if(FB.dayKey===k) return;
+  if(FB.unDay) FB.unDay(); FB.dayKey=k;
+  FB.unDay=FB.root.doc('day_'+k).onSnapshot(snap=>{
+    FB.pending=snap.metadata.hasPendingWrites; setSync();
+    const d=day();
+    if(snap.exists){
+      const r=snap.data()||{};
+      d.choice=r.choice||d.choice||{}; d.eaten=r.eaten||{}; d.packed=r.packed||{};
+      save(); softRender();
+    } else if(!snap.metadata.fromCache && (Object.keys(d.eaten).length||Object.keys(d.packed).length||Object.keys(d.choice).length)){
+      fsDay({choice:d.choice,eaten:d.eaten,packed:d.packed});
+    }
+  },e=>{FB.lastErr=String(e.message||e);});
+}
+window.addEventListener('online',setSync); window.addEventListener('offline',setSync);
+
+// si cambia el día con la app abierta
+setInterval(()=>{ if(document.visibilityState==='visible'){ const k=todayKey(); if(!S.days[k]) render(); if(FB.ok) subDay(); } },60000);
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') render(); });
+
+render();
+initSync();
+if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{})); }
+</script>
+</body>
+</html>
