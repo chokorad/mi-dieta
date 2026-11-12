@@ -16,10 +16,10 @@
 <style>
 :root{
   --bg:#f4f7f4; --card:#fff; --ink:#14231a; --muted:#5f7466; --line:#dbe5dd;
-  --green:#0e7490; --green-d:#0c1445; --green-l:#cffafe; --amber:#b45309; --amber-l:#fef3c7; --red:#b91c1c;
+  --ok:#16a34a; --okbg:#dcfce7; --green:#0e7490; --green-d:#0c1445; --green-l:#cffafe; --amber:#b45309; --amber-l:#fef3c7; --red:#b91c1c;
 }
 @media (prefers-color-scheme:dark){
-  :root{--bg:#0e1511; --card:#17211b; --ink:#e8f1ea; --muted:#9bb0a1; --line:#273529; --green:#22d3ee; --green-d:#050a2e; --green-l:#0e2f3d; --amber:#fbbf24; --amber-l:#33280b; --red:#f87171;}
+  :root{--bg:#0e1511; --card:#17211b; --ink:#e8f1ea; --muted:#9bb0a1; --line:#273529; --ok:#4ade80; --okbg:#12301f; --green:#22d3ee; --green-d:#050a2e; --green-l:#0e2f3d; --amber:#fbbf24; --amber-l:#33280b; --red:#f87171;}
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
@@ -77,6 +77,28 @@ textarea{min-height:120px;resize:vertical}
 .ghost{position:fixed;z-index:50;pointer-events:none;background:var(--card);color:var(--ink);border:1px solid var(--green);border-radius:10px;padding:8px 12px;box-shadow:0 8px 24px rgba(0,0,0,.35);font-size:15px;max-width:80vw;opacity:.96;transform:translate(-14px,-50%)}
 .drag-src{opacity:.35}
 .newz{border:2px dashed var(--line);border-radius:14px;padding:16px;text-align:center;color:var(--muted);margin-bottom:10px}
+.tcols{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:start}
+.tcol{display:flex;flex-direction:column;gap:8px;min-width:0}
+.tile{position:relative;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:13px;transition:background .2s,border-color .2s}
+.tile.done{background:var(--okbg);border-color:var(--ok)}
+.th{display:flex;align-items:center;gap:7px;padding:9px 26px 9px 8px;cursor:pointer;user-select:none}
+.tname{font-weight:650;font-size:13px;line-height:1.15;word-break:break-word}
+.tsub{font-size:11px;color:var(--muted);margin-top:1px}
+.tile.done .tsub{color:var(--ok)}
+.ttemp{position:absolute;top:2px;right:2px;border:0;background:transparent;font-size:12px;line-height:1;padding:5px;cursor:pointer}
+.tbody{border-top:1px solid var(--line);padding:2px 8px 6px}
+.titem{display:flex;gap:6px;align-items:center;padding:6px 0;border-bottom:1px dashed var(--line);font-size:12.5px;line-height:1.25}
+.titem:last-child{border-bottom:0}
+.titem label{flex:1;display:flex;gap:6px;align-items:center;cursor:pointer;min-width:0}
+.titem input[type=checkbox]{width:18px;height:18px}
+.titem.ck .t{text-decoration:line-through;color:var(--muted)}
+.titem .grow{min-width:0;word-break:break-word}
+.titem .cart{padding:3px 6px;font-size:13px}
+.tin{width:100%;min-width:0;border:1px solid var(--line);border-radius:6px;padding:4px 6px;font-size:13px;background:var(--bg);color:var(--ink)}
+.ibtn{border:0;background:transparent;padding:0;line-height:0;cursor:pointer;flex:none}
+.tfoot{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding-top:6px}
+.tfoot select{width:auto;max-width:100%;padding:3px;font-size:11px;border-radius:6px}
+.tfoot .btn{padding:4px 8px;font-size:11px}
 .toast{position:fixed;left:50%;bottom:calc(88px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#111;color:#fff;padding:9px 16px;border-radius:99px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .25s;z-index:20}
 .toast.show{opacity:.95}
 h3{margin:16px 2px 8px;font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
@@ -182,10 +204,10 @@ function hs(t){ let h=5381; for(let i=0;i<t.length;i++) h=((h<<5)+h+t.charCodeAt
 function pk(slot,opt,text){ return slot.id+'_'+opt.id+'_'+hs(text); }
 const tempOf = o => (o && o.temp==='hot') ? 'hot' : 'cold';
 const pool = () => { const out=[]; S.slots.forEach(s=>{ const o=curOpt(s); if(!o) return; o.items.forEach(t=>out.push({key:pk(s,o,t),s,o,t})); }); return out; };
-const autoTp = () => S.slots.filter(s=>s.carry).map(s=>{ const o=curOpt(s); return o?{id:'a_'+s.id,name:s.name,temp:tempOf(o),items:o.items.map(t=>pk(s,o,t))}:null; }).filter(Boolean);
+const autoTp = () => S.slots.filter(s=>s.carry).map(s=>{ const o=curOpt(s); return o?{id:'a_'+s.id,name:s.name,temp:tempOf(o),shape:/^colaci/i.test(s.name)?'cy':'sq',items:o.items.map(t=>pk(s,o,t))}:null; }).filter(Boolean);
 function topperData(){
   const d=day(); const P=pool(); const m={}; P.forEach(x=>m[x.key]=x); const used=new Set();
-  const list=(d.tp||autoTp()).map(tp=>({id:tp.id,name:tp.name,temp:tp.temp==='hot'?'hot':'cold',rows:tp.items.filter(k=>m[k]&&!used.has(k)&&used.add(k)).map(k=>m[k])}));
+  const list=(d.tp||autoTp()).map(tp=>({id:tp.id,name:tp.name,temp:tp.temp==='hot'?'hot':'cold',shape:tp.shape==='cy'?'cy':'sq',rows:tp.items.filter(k=>m[k]&&!used.has(k)&&used.add(k)).map(k=>m[k])}));
   return {list, free:P.filter(x=>!used.has(x.key)), custom:!!d.tp};
 }
 function packStats(s,o){ const d=day(); const total=o.items.length; return {total, ok:o.items.filter(t=>d.packed[pk(s,o,t)]).length}; }
@@ -199,15 +221,17 @@ function togglePack(key){ const d=day(); d.packed[key]=!d.packed[key]; save(); r
 let tpEdit=false;
 function tpGet(){ const d=day(); if(!d.tp) d.tp=autoTp(); return d.tp; }
 function tpSave(){ const d=day(); save(); render(); fsDay({json:JSON.stringify(d.tp)}); }
-function addTopper(){ const tp=tpGet(); const t={id:'t'+uid(),name:'Topper '+(tp.length+1),temp:'cold',items:[]}; tp.push(t); openSet.add('te'+t.id); tpSave(); }
+function addTopper(){ const tp=tpGet(); const t={id:'t'+uid(),name:'Topper '+(tp.length+1),temp:'cold',shape:'sq',items:[]}; tp.push(t); tpSave(); }
 function delTopper(id){ const tp=tpGet(); const t=tp.find(x=>x.id===id); if(!t||!confirm('¿Quitar "'+t.name+'"? Sus ingredientes quedan disponibles.')) return; day().tp=tp.filter(x=>x.id!==id); tpSave(); }
 function renTopper(id,v){ const t=tpGet().find(x=>x.id===id); if(t&&v.trim()){ t.name=v.trim(); tpSave(); } }
 function tempTopper(id){ const t=tpGet().find(x=>x.id===id); if(t){ t.temp=t.temp==='hot'?'cold':'hot'; tpSave(); } }
+function shapeTopper(id){ const t=tpGet().find(x=>x.id===id); if(t){ t.shape=t.shape==='cy'?'sq':'cy'; tpSave(); } }
+function reorderTopper(id,to){ const tp=tpGet(); const i=tp.findIndex(x=>x.id===id), j=tp.findIndex(x=>x.id===to); if(i<0||j<0||i===j) return; const [t]=tp.splice(i,1); tp.splice(j,0,t); tpSave(); }
 function moveTopper(id,dir){ const tp=tpGet(); const i=tp.findIndex(x=>x.id===id), j=i+dir; if(i<0||j<0||j>=tp.length) return; [tp[i],tp[j]]=[tp[j],tp[i]]; tpSave(); }
 function mergeTopper(id,to){ if(!to) return; const tp=tpGet(); const a=tp.find(x=>x.id===id), b=tp.find(x=>x.id===to); if(!a||!b) return; b.items=b.items.concat(a.items); day().tp=tp.filter(x=>x.id!==id); tpSave(); toast('Toppers juntos'); }
 function moveItem(key,to){
   if(!to) return; const tp=tpGet(); tp.forEach(t=>{ t.items=t.items.filter(k=>k!==key); });
-  if(to==='new'){ const it=pool().find(x=>x.key===key); const t={id:'t'+uid(),name:'Topper '+(tp.length+1),temp:it?tempOf(it.o):'cold',items:[key]}; tp.push(t); openSet.add('te'+t.id); }
+  if(to==='new'){ const it=pool().find(x=>x.key===key); const t={id:'t'+uid(),name:'Topper '+(tp.length+1),temp:it?tempOf(it.o):'cold',shape:'sq',items:[key]}; tp.push(t); }
   else if(to!=='none'){ const t=tp.find(x=>x.id===to); if(t) t.items.push(key); }
   tpSave();
 }
@@ -256,45 +280,46 @@ function vHoy(){
   h+=`<div class="tools"><button class="btn alt sm" onclick="uncheckDay()">↺ Reiniciar el día</button></div>`;
   return h || '<div class="empty">No hay comidas. Agrega en Editar.</div>';
 }
+const ICO={
+  sq:'<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><rect x="2.5" y="9" width="19" height="12" rx="3" fill="#3b82f6"/><rect x="1.5" y="5.5" width="21" height="4.5" rx="1.8" fill="#1d4ed8"/></svg>',
+  cy:'<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><rect x="6" y="8.5" width="12" height="13" rx="2.5" fill="#ead9b0"/><rect x="5" y="5" width="14" height="4.5" rx="1.8" fill="#c8b07a"/></svg>'
+};
+const ico = sh => ICO[sh==='cy'?'cy':'sq'];
+const cols = arr => `<div class="tcols"><div class="tcol">${arr.filter((_,i)=>i%2===0).join('')}</div><div class="tcol">${arr.filter((_,i)=>i%2===1).join('')}</div></div>`;
+const tempBtn = t => `<button class="ttemp" onclick="tempTopper('${t.id}')" aria-label="Cambiar frío/caliente">${t.temp==='hot'?'🔥':'❄️'}</button>`;
+
 function vToppers(){
   const d=day(); const {list,free,custom}=topperData();
   if(tpEdit) return vTopperEdit(list,free,custom);
   const vis=list.filter(t=>t.rows.length);
-  const card=t=>{
-    const total=t.rows.length, ok=t.rows.filter(r=>d.packed[r.key]).length, open=openSet.has('tp'+t.id);
-    return `<div class="card ${total&&ok===total?'done':''} ${open?'open':''}">
-      <div class="row head" onclick="tgl('tp${t.id}')"><span style="font-size:26px">${t.temp==='hot'?'🔥':'❄️'}</span>
-        <div class="grow"><div class="ttl">${esc(t.name)}</div><div class="sub">${total} item${total===1?'':'s'} · ${ok}/${total}</div></div><span class="chev">▶</span></div>
-      <div class="body">${t.rows.map(r=>{const c=!!d.packed[r.key];return `<div class="item ${c?'ck':''}">
-        <label><input type="checkbox" ${c?'checked':''} onchange="togglePack(${q(r.key)})"><span class="t">${esc(r.s.emoji)} ${esc(r.t)}</span></label>
-        <button class="cart ${inShop(r.t)?'in':''}" onclick="toShop(${q(r.t)})" aria-label="Me falta, al mandado">🛒</button></div>`;}).join('')}</div></div>`;
+  const tile=t=>{
+    const total=t.rows.length, ok=t.rows.filter(r=>d.packed[r.key]).length, open=openSet.has('tp'+t.id), done=total>0&&ok===total;
+    return `<div class="tile ${done?'done':''}">${tempBtn(t)}
+      <div class="th" onclick="tgl('tp${t.id}')">${ico(t.shape)}<div style="min-width:0"><div class="tname">${esc(t.name)}${done?' ✅':''}</div><div class="tsub">${ok}/${total}</div></div></div>
+      ${open?`<div class="tbody">${t.rows.map(r=>{const k=r.key,c=!!d.packed[k];return `<div class="titem ${c?'ck':''}">
+        <label><input type="checkbox" ${c?'checked':''} onchange="togglePack(${q(k)})"><span class="t">${esc(r.s.emoji)} ${esc(r.t)}</span></label>
+        <button class="cart ${inShop(r.t)?'in':''}" onclick="toShop(${q(r.t)})" aria-label="Me falta, al mandado">🛒</button></div>`;}).join('')}</div>`:''}
+    </div>`;
   };
-  const sec=(t,l)=> l.length? `<h3>${t}</h3>`+l.map(card).join('') : '';
-  const hot=vis.filter(t=>t.temp==='hot'), cold=vis.filter(t=>t.temp!=='hot');
   const items=vis.reduce((n,t)=>n+t.rows.length,0);
   return `<div class="tools"><button class="btn sm" onclick="tpEdit=true;render()">✏️ Editar toppers</button></div>
-    <div class="hint">Hoy llevo ${vis.length} topper${vis.length===1?'':'s'} · ${items} ingredientes${custom?' (acomodo personalizado)':''}. Toca uno y ve tachando. Si algo se acabó: 🛒.</div>`
-    + (sec('🔥 Calientes',hot)+sec('❄️ Fríos',cold) || '<div class="empty">No llevas toppers hoy. Toca "Editar toppers".</div>');
+    <div class="hint">Hoy llevo ${vis.length} topper${vis.length===1?'':'s'} · ${items} ingredientes${custom?' (acomodo personalizado)':''}. Toca uno para ver y tachar. 🔥/❄️ se cambia tocándolo.</div>`
+    + (vis.length? cols(vis.map(tile)) : '<div class="empty">No llevas toppers hoy. Toca "Editar toppers".</div>');
 }
 function vTopperEdit(list,free,custom){
   const row=(r,from)=>`<div class="item" data-key="${esc(r.key)}"><span class="grab" data-drag="${esc(r.key)}" data-from="${from}" title="Arrastra">⠿</span><span class="grow">${esc(r.s.emoji)} ${esc(r.t)}</span></div>`;
+  const trow=(r,from)=>`<div class="titem" data-key="${esc(r.key)}"><span class="grab" data-drag="${esc(r.key)}" data-from="${from}" style="padding:6px 6px 6px 0" title="Arrastra">⠿</span><span class="grow">${esc(r.s.emoji)} ${esc(r.t)}</span></div>`;
+  const tile=t=>`<div class="tile dz" data-drop="${t.id}">${tempBtn(t)}
+      <div class="th" style="cursor:default;padding-right:26px"><span class="grab" data-tdrag="${t.id}" style="padding:6px 2px 6px 0" title="Arrastra para reacomodar">⠿</span>
+        <button class="ibtn" onclick="shapeTopper('${t.id}')" aria-label="Cambiar forma">${ico(t.shape)}</button>
+        <input class="tin" type="text" value="${esc(t.name)}" onchange="renTopper('${t.id}',this.value)"></div>
+      <div class="tbody">${t.rows.map(r=>trow(r,t.id)).join('')||'<div class="tsub" style="padding:8px 0">Vacío — arrastra ingredientes aquí.</div>'}
+        <div class="tfoot">${list.length>1?`<select onchange="mergeTopper('${t.id}',this.value)"><option value="">Juntar con…</option>${list.filter(x=>x.id!==t.id).map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select>`:''}
+          <button class="btn red sm" onclick="delTopper('${t.id}')">Quitar</button></div></div></div>`;
   let h=`<div class="tools"><button class="btn sm" onclick="tpEdit=false;render()">✔ Listo</button><button class="btn alt sm" onclick="addTopper()">＋ Agregar topper</button><button class="btn alt sm" onclick="resetTp()">↺ Restablecer</button></div>
-    <div class="hint">Mantén presionado ⠿ y arrastra un ingrediente a otro topper. Toca el nombre del topper para renombrarlo, cambiar 🔥/❄️, moverlo o juntarlo. Solo cambia hoy.</div>`;
-  h+=list.map(t=>{
-    const open=openSet.has('te'+t.id);
-    return `<div class="card dz" data-drop="${t.id}">
-      <div class="row head" onclick="tgl('te${t.id}')"><span style="font-size:26px">${t.temp==='hot'?'🔥':'❄️'}</span>
-        <div class="grow"><div class="ttl">${esc(t.name)}</div><div class="sub">${t.rows.length} item${t.rows.length===1?'':'s'}</div></div><span class="sub">${open?'▲':'⚙'}</span></div>
-      ${open?`<div style="padding:0 14px 8px;border-top:1px solid var(--line)">
-        <div class="grid2"><div class="field"><label>Nombre</label><input type="text" value="${esc(t.name)}" onchange="renTopper('${t.id}',this.value)"></div>
-          <div class="field"><label>Temperatura</label><button class="chip" style="width:100%;padding:10px" onclick="tempTopper('${t.id}')">${t.temp==='hot'?'🔥 Caliente':'❄️ Frío'}</button></div></div>
-        <div class="tools"><button class="btn alt sm" onclick="moveTopper('${t.id}',-1)">↑ Subir</button><button class="btn alt sm" onclick="moveTopper('${t.id}',1)">↓ Bajar</button>
-          ${list.length>1?`<select onchange="mergeTopper('${t.id}',this.value)" style="width:auto;padding:6px"><option value="">Juntar con…</option>${list.filter(x=>x.id!==t.id).map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select>`:''}
-          <button class="btn red sm" onclick="delTopper('${t.id}')">Quitar topper</button></div></div>`:''}
-      <div style="padding:2px 14px 10px">${t.rows.map(r=>row(r,t.id)).join('')||'<div class="sub" style="padding:10px 0">Vacío — arrastra ingredientes aquí.</div>'}</div>
-    </div>`;
-  }).join('');
-  h+=`<div class="newz dz" data-drop="new">＋ Suelta aquí para un topper nuevo</div>`;
+    <div class="hint">Arrastra ⠿ de un ingrediente a otro topper, o ⠿ de un topper para cambiarlo de lugar. Toca la forma para cambiarla (cuadrada/redonda) y 🔥/❄️ para la temperatura. Solo cambia hoy.</div>`;
+  h+=cols(list.map(tile));
+  h+=`<div class="newz dz" data-drop="new" style="margin-top:10px">＋ Suelta aquí un ingrediente para un topper nuevo</div>`;
   const bySlot={}; free.forEach(r=>{ (bySlot[r.s.id]=bySlot[r.s.id]||{s:r.s,rows:[]}).rows.push(r); });
   h+=`<h3>Sin topper (suelta aquí para quitar)</h3><div class="card dz" data-drop="none"><div style="padding:6px 14px 10px">`
     + (Object.values(bySlot).map(g=>`<div class="sub" style="margin-top:8px">${esc(g.s.emoji)} ${esc(g.s.name)}</div>${g.rows.map(r=>row(r,'')).join('')}`).join('') || '<div class="sub" style="padding:10px 0">Todo está asignado a un topper.</div>')
@@ -307,9 +332,10 @@ const DRAG={on:false};
 function dragStart(e){
   const hd=e.target.closest&&e.target.closest('.grab'); if(!hd||!tpEdit) return;
   e.preventDefault();
-  DRAG.on=true; DRAG.key=hd.dataset.drag; DRAG.from=hd.dataset.from||''; DRAG.id=e.pointerId; DRAG.over=null;
-  DRAG.src=hd.closest('.item'); if(DRAG.src) DRAG.src.classList.add('drag-src');
-  const g=document.createElement('div'); g.className='ghost'; g.textContent=(DRAG.src?DRAG.src.querySelector('.grow').textContent:'');
+  DRAG.on=true; DRAG.kind=hd.dataset.tdrag?'topper':'item'; DRAG.key=hd.dataset.tdrag||hd.dataset.drag; DRAG.from=hd.dataset.from||''; DRAG.id=e.pointerId; DRAG.over=null;
+  DRAG.src=hd.closest(DRAG.kind==='topper'?'.tile':'.item,.titem'); if(DRAG.src) DRAG.src.classList.add('drag-src');
+  const g=document.createElement('div'); g.className='ghost';
+  g.textContent = !DRAG.src ? '' : DRAG.kind==='topper' ? (DRAG.src.querySelector('.tin')||{}).value||'Topper' : DRAG.src.querySelector('.grow').textContent;
   document.body.appendChild(g); DRAG.ghost=g;
   try{ hd.setPointerCapture(e.pointerId); }catch(_){}
   dragMove(e); dragScrollLoop();
@@ -336,7 +362,10 @@ function dragEnd(e,cancel){
   const to=!cancel && DRAG.over ? DRAG.over.dataset.drop : null;
   if(DRAG.over) DRAG.over.classList.remove('over');
   if(DRAG.ghost) DRAG.ghost.remove(); if(DRAG.src) DRAG.src.classList.remove('drag-src');
-  if(to!==null) dropItem(DRAG.key,DRAG.from,to);
+  if(to!==null){
+    if(DRAG.kind==='topper'){ if(to!=='new'&&to!=='none'&&to!==DRAG.key) reorderTopper(DRAG.key,to); }
+    else dropItem(DRAG.key,DRAG.from,to);
+  }
 }
 function dropItem(key,from,to){
   if(to===from) return;                 // soltó en el mismo lugar
