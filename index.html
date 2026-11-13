@@ -128,6 +128,8 @@ const DEFAULT_PLAN = () => ({
   planT: 0,
   tempMig: 1,
   cleanMig: 1,
+  tp: null,
+  tpOut: [],
   slots: [
     {id:'s1', emoji:'🍳', name:'Desayuno', time:'07:30', carry:true, def:'o1', options:[
       {id:'o1', name:'Tostada con claras', temp:'hot', items:['Pan integral tostado (2 pzas)','Claras de huevo (4 pzas)','Aguacate (1/3 pza)','Zanahoria picada congelada (1/2 taza)','Aceite en spray']}
@@ -165,6 +167,11 @@ function migrate(o){
     const n=o.slots.length;
     o.slots=o.slots.filter(sl=>!(sl.name==='Nueva comida' && sl.options.every(op=>!(op.items&&op.items.length))));
     o.cleanMig=1; if(o.slots.length!==n){ o.planT=Date.now(); o.pushPlan=true; }
+  }
+  if(o.tp===undefined){
+    let best=null; Object.keys(o.days||{}).sort().forEach(k=>{ if(o.days[k]&&o.days[k].tp) best=o.days[k].tp; });
+    o.tp=best; o.tpOut=[]; o.tpMig=1;
+    if(best){ o.planT=Date.now(); o.pushPlan=true; }
   }
   return o;
 }
@@ -206,9 +213,13 @@ const tempOf = o => (o && o.temp==='hot') ? 'hot' : 'cold';
 const pool = () => { const out=[]; S.slots.forEach(s=>{ const o=curOpt(s); if(!o) return; o.items.forEach(t=>out.push({key:pk(s,o,t),s,o,t})); }); return out; };
 const autoTp = () => S.slots.filter(s=>s.carry).map(s=>{ const o=curOpt(s); return o?{id:'a_'+s.id,name:s.name,temp:tempOf(o),shape:/^colaci/i.test(s.name)?'cy':'sq',items:o.items.map(t=>pk(s,o,t))}:null; }).filter(Boolean);
 function topperData(){
-  const d=day(); const P=pool(); const m={}; P.forEach(x=>m[x.key]=x); const used=new Set();
-  const list=(d.tp||autoTp()).map(tp=>({id:tp.id,name:tp.name,temp:tp.temp==='hot'?'hot':'cold',shape:tp.shape==='cy'?'cy':'sq',rows:tp.items.filter(k=>m[k]&&!used.has(k)&&used.add(k)).map(k=>m[k])}));
-  return {list, free:P.filter(x=>!used.has(x.key)), custom:!!d.tp};
+  const P=pool(); const m={}; P.forEach(x=>m[x.key]=x); const used=new Set(); const out=new Set(S.tpOut||[]);
+  const list=(S.tp||autoTp()).map(tp=>({id:tp.id,name:tp.name,temp:tp.temp==='hot'?'hot':'cold',shape:tp.shape==='cy'?'cy':'sq',rows:tp.items.filter(k=>m[k]&&!used.has(k)&&used.add(k)).map(k=>m[k])}));
+  if(S.tp){ // si cambias de opción en una comida, sus ingredientes nuevos caen en el topper donde iba esa comida
+    const home={}; S.tp.forEach(t=>t.items.forEach(k=>{ if(!m[k]){ const pre=k.split('_')[0]; if(!home[pre]) home[pre]=t.id; } }));
+    P.forEach(x=>{ if(!used.has(x.key)&&!out.has(x.key)){ const t=list.find(z=>z.id===home[x.s.id]); if(t){ t.rows.push(x); used.add(x.key); } } });
+  }
+  return {list, free:P.filter(x=>!used.has(x.key)), custom:!!S.tp};
 }
 function packStats(s,o){ const d=day(); const total=o.items.length; return {total, ok:o.items.filter(t=>d.packed[pk(s,o,t)]).length}; }
 function inShop(text){ return S.shop.some(x=>x.text.toLowerCase()===text.toLowerCase() && !x.done); }
@@ -219,23 +230,29 @@ function pickOpt(sid,oid){ day().choice[sid]=oid; save(); render(); fsDay({choic
 function togglePack(key){ const d=day(); d.packed[key]=!d.packed[key]; save(); render(); fsDay({packed:{[key]:d.packed[key]}}); }
 /* ---- toppers del día (recipientes): se arman con ingredientes de las comidas ---- */
 let tpEdit=false;
-function tpGet(){ const d=day(); if(!d.tp) d.tp=autoTp(); return d.tp; }
-function tpSave(){ const d=day(); save(); render(); fsDay({json:JSON.stringify(d.tp)}); }
+function tpGet(){
+  if(!S.tp){ S.tp=autoTp(); S.tpOut=S.tpOut||[]; }
+  topperData().list.forEach(t=>{ const raw=S.tp.find(x=>x.id===t.id); if(raw) t.rows.forEach(r=>{ if(!raw.items.includes(r.key)) raw.items.push(r.key); }); });
+  return S.tp;
+}
+function tpSave(){ S.tpMig=1; savePlan(); render(); }
 function addTopper(){ const tp=tpGet(); const t={id:'t'+uid(),name:'Topper '+(tp.length+1),temp:'cold',shape:'sq',items:[]}; tp.push(t); tpSave(); }
-function delTopper(id){ const tp=tpGet(); const t=tp.find(x=>x.id===id); if(!t||!confirm('¿Quitar "'+t.name+'"? Sus ingredientes quedan disponibles.')) return; day().tp=tp.filter(x=>x.id!==id); tpSave(); }
+function delTopper(id){ const tp=tpGet(); const t=tp.find(x=>x.id===id); if(!t||!confirm('¿Quitar "'+t.name+'"? Sus ingredientes quedan disponibles.')) return; S.tp=tp.filter(x=>x.id!==id); tpSave(); }
 function renTopper(id,v){ const t=tpGet().find(x=>x.id===id); if(t&&v.trim()){ t.name=v.trim(); tpSave(); } }
 function tempTopper(id){ const t=tpGet().find(x=>x.id===id); if(t){ t.temp=t.temp==='hot'?'cold':'hot'; tpSave(); } }
 function shapeTopper(id){ const t=tpGet().find(x=>x.id===id); if(t){ t.shape=t.shape==='cy'?'sq':'cy'; tpSave(); } }
 function reorderTopper(id,to){ const tp=tpGet(); const i=tp.findIndex(x=>x.id===id), j=tp.findIndex(x=>x.id===to); if(i<0||j<0||i===j) return; const [t]=tp.splice(i,1); tp.splice(j,0,t); tpSave(); }
 function moveTopper(id,dir){ const tp=tpGet(); const i=tp.findIndex(x=>x.id===id), j=i+dir; if(i<0||j<0||j>=tp.length) return; [tp[i],tp[j]]=[tp[j],tp[i]]; tpSave(); }
-function mergeTopper(id,to){ if(!to) return; const tp=tpGet(); const a=tp.find(x=>x.id===id), b=tp.find(x=>x.id===to); if(!a||!b) return; b.items=b.items.concat(a.items); day().tp=tp.filter(x=>x.id!==id); tpSave(); toast('Toppers juntos'); }
+function mergeTopper(id,to){ if(!to) return; const tp=tpGet(); const a=tp.find(x=>x.id===id), b=tp.find(x=>x.id===to); if(!a||!b) return; b.items=b.items.concat(a.items); S.tp=tp.filter(x=>x.id!==id); tpSave(); toast('Toppers juntos'); }
 function moveItem(key,to){
   if(!to) return; const tp=tpGet(); tp.forEach(t=>{ t.items=t.items.filter(k=>k!==key); });
   if(to==='new'){ const it=pool().find(x=>x.key===key); const t={id:'t'+uid(),name:'Topper '+(tp.length+1),temp:it?tempOf(it.o):'cold',shape:'sq',items:[key]}; tp.push(t); }
   else if(to!=='none'){ const t=tp.find(x=>x.id===to); if(t) t.items.push(key); }
+  S.tpOut=(S.tpOut||[]).filter(k=>k!==key); if(to==='none') S.tpOut.push(key);
   tpSave();
 }
-function resetTp(){ if(!confirm('¿Volver a un topper por comida? Se pierde tu acomodo de hoy.')) return; day().tp=null; save(); render(); fsDay({json:fv().delete()}); toast('Toppers restablecidos'); }
+function resetTp(){ if(!confirm('¿Volver al acomodo automático (un topper por comida)? Se pierde tu acomodo de toppers.')) return; S.tp=null; S.tpOut=[]; S.tpMig=1; savePlan(); render(); toast('Acomodo automático'); }
+function restoreChecks(){ if(!confirm('¿Quitar todas las palomitas de hoy? Tus toppers se quedan como están.')) return; const d=day(); d.packed={}; save(); render(); toast('Palomitas quitadas'); fsDayReplace(); }
 function toShop(text){
   const ex = S.shop.find(x=>x.text.toLowerCase()===text.toLowerCase());
   if(ex){ if(ex.done){ ex.done=false; toast('Regresó a la lista 🛒'); fsShop({items:{[ex.id]:{done:false}}}); } else { toast('Ya está en el mandado'); } }
@@ -302,8 +319,8 @@ function vToppers(){
     </div>`;
   };
   const items=vis.reduce((n,t)=>n+t.rows.length,0);
-  return `<div class="tools"><button class="btn sm" onclick="tpEdit=true;render()">✏️ Editar toppers</button></div>
-    <div class="hint">Hoy llevo ${vis.length} topper${vis.length===1?'':'s'} · ${items} ingredientes${custom?' (acomodo personalizado)':''}. Toca uno para ver y tachar. 🔥/❄️ se cambia tocándolo.</div>`
+  return `<div class="tools"><button class="btn sm" onclick="tpEdit=true;render()">✏️ Editar toppers</button><button class="btn alt sm" onclick="restoreChecks()">↺ Restaurar</button></div>
+    <div class="hint">Hoy llevo ${vis.length} topper${vis.length===1?'':'s'} · ${items} ingredientes${custom?' (acomodo personalizado)':''}. Toca uno para ver y tachar. "Restaurar" quita las palomitas. 🔥/❄️ se cambia tocándolo.</div>`
     + (vis.length? cols(vis.map(tile)) : '<div class="empty">No llevas toppers hoy. Toca "Editar toppers".</div>');
 }
 function vTopperEdit(list,free,custom){
@@ -316,14 +333,15 @@ function vTopperEdit(list,free,custom){
       <div class="tbody">${t.rows.map(r=>trow(r,t.id)).join('')||'<div class="tsub" style="padding:8px 0">Vacío — arrastra ingredientes aquí.</div>'}
         <div class="tfoot">${list.length>1?`<select onchange="mergeTopper('${t.id}',this.value)"><option value="">Juntar con…</option>${list.filter(x=>x.id!==t.id).map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select>`:''}
           <button class="btn red sm" onclick="delTopper('${t.id}')">Quitar</button></div></div></div>`;
-  let h=`<div class="tools"><button class="btn sm" onclick="tpEdit=false;render()">✔ Listo</button><button class="btn alt sm" onclick="addTopper()">＋ Agregar topper</button><button class="btn alt sm" onclick="resetTp()">↺ Restablecer</button></div>
-    <div class="hint">Arrastra ⠿ de un ingrediente a otro topper, o ⠿ de un topper para cambiarlo de lugar. Toca la forma para cambiarla (cuadrada/redonda) y 🔥/❄️ para la temperatura. Solo cambia hoy.</div>`;
+  let h=`<div class="tools"><button class="btn sm" onclick="tpEdit=false;render()">✔ Listo</button><button class="btn alt sm" onclick="addTopper()">＋ Agregar topper</button><button class="btn alt sm" onclick="restoreChecks()">↺ Restaurar</button></div>
+    <div class="hint">Arrastra ⠿ de un ingrediente a otro topper, o ⠿ de un topper para cambiarlo de lugar. Toca la forma para cambiarla y 🔥/❄️ para la temperatura. Tu acomodo se queda igual todos los días; "Restaurar" solo quita las palomitas.</div>`;
   h+=cols(list.map(tile));
   h+=`<div class="newz dz" data-drop="new" style="margin-top:10px">＋ Suelta aquí un ingrediente para un topper nuevo</div>`;
   const bySlot={}; free.forEach(r=>{ (bySlot[r.s.id]=bySlot[r.s.id]||{s:r.s,rows:[]}).rows.push(r); });
   h+=`<h3>Sin topper (suelta aquí para quitar)</h3><div class="card dz" data-drop="none"><div style="padding:6px 14px 10px">`
     + (Object.values(bySlot).map(g=>`<div class="sub" style="margin-top:8px">${esc(g.s.emoji)} ${esc(g.s.name)}</div>${g.rows.map(r=>row(r,'')).join('')}`).join('') || '<div class="sub" style="padding:10px 0">Todo está asignado a un topper.</div>')
     + `</div></div>`;
+  if(custom) h+=`<div class="tools" style="margin-top:14px"><button class="btn alt sm" onclick="resetTp()">Volver al acomodo automático</button></div>`;
   return h;
 }
 
@@ -484,9 +502,9 @@ async function initSync(){
 }
 function guard(fn){ return function(){ if(!FB.ok) return Promise.resolve(); try{ return Promise.resolve(fn.apply(null,arguments)).catch(e=>{FB.lastErr=String(e&&e.message||e); toast('No se pudo sincronizar');}); }catch(e){ return Promise.resolve(); } }; }
 const fsDay=guard(function(data){ return FB.root.doc('day_'+todayKey()).set(data,{merge:true}); });
-const fsDayReplace=guard(function(){ const d=day(); const o={choice:d.choice||{},eaten:{},packed:{}}; if(d.tp) o.json=JSON.stringify(d.tp); return FB.root.doc('day_'+todayKey()).set(o); });
+const fsDayReplace=guard(function(){ const d=day(); return FB.root.doc('day_'+todayKey()).set({choice:d.choice||{},eaten:d.eaten||{},packed:d.packed||{}}); });
 const fsShop=guard(function(data){ return FB.root.doc('shop').set(data,{merge:true}); });
-const fsPlan=guard(function(){ return FB.root.doc('plan').set({json:JSON.stringify(S.slots),t:S.planT||Date.now()}); });
+const fsPlan=guard(function(){ return FB.root.doc('plan').set({json:JSON.stringify({v:2,slots:S.slots,tp:S.tp||null,out:S.tpOut||[]}),t:S.planT||Date.now()}); });
 
 function subPlan(){
   FB.root.doc('plan').onSnapshot({includeMetadataChanges:true},snap=>{
@@ -494,7 +512,7 @@ function subPlan(){
     if(snap.exists){
       const d=snap.data();
       if(d && d.json && (d.t||0) > (S.planT||0)){
-        try{ S.slots=JSON.parse(d.json); S.planT=d.t; save(); softRender(); }catch(e){}
+        try{ const o=JSON.parse(d.json); if(Array.isArray(o)){ S.slots=o; } else if(o&&o.slots){ S.slots=o.slots; S.tp=o.tp||null; S.tpOut=o.out||[]; S.tpMig=1; } else throw 0; S.planT=d.t; save(); softRender(); }catch(e){}
       }
     } else if(!snap.metadata.fromCache){ fsPlan(); }
   },e=>{FB.lastErr=String(e.message||e); FB.ok=false; setSync();});
@@ -520,10 +538,10 @@ function subDay(){
     if(snap.exists){
       const r=snap.data()||{};
       d.choice=r.choice||d.choice||{}; d.eaten=r.eaten||{}; d.packed=r.packed||{};
-      try{ d.tp = r.json ? JSON.parse(r.json) : null; }catch(e){}
+      if(r.json && !S.tpMig && !S.tp){ try{ S.tp=JSON.parse(r.json); S.tpOut=S.tpOut||[]; S.tpMig=1; savePlan(); }catch(e){} } // acomodo viejo (por día) -> global
       save(); softRender();
-    } else if(!snap.metadata.fromCache && (Object.keys(d.eaten).length||Object.keys(d.packed).length||Object.keys(d.choice).length||d.tp)){
-      const o={choice:d.choice,eaten:d.eaten,packed:d.packed}; if(d.tp) o.json=JSON.stringify(d.tp); fsDay(o);
+    } else if(!snap.metadata.fromCache && (Object.keys(d.eaten).length||Object.keys(d.packed).length||Object.keys(d.choice).length)){
+      fsDay({choice:d.choice,eaten:d.eaten,packed:d.packed});
     }
   },e=>{FB.lastErr=String(e.message||e);});
 }
